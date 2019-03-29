@@ -45,12 +45,31 @@ ngLn8mAtV/IGigWBpZCVeEIHH1nG1DLatF2VDCQifQXZ5oRcZZr6
 
 
 //用私钥做签名
-func SignData() []byte {
+//func SignData() []byte {
+//
+//	//首先用hash做明文散列
+//	plaintxt:=[]byte("IAMA")
+//	h:=md5.New()
+//	h.Write(plaintxt)
+//	hashed:=h.Sum(nil)
+//
+//	//将字节数组，转换成*private类型
+//	block ,_:=pem.Decode(privateKey)
+//	priv,_:=x509.ParsePKCS1PrivateKey(block.Bytes)
+//
+//	//通过pss做签名
+//	opts:=&rsa.PSSOptions{rsa.PSSSaltLengthAuto,crypto.MD5}
+//	sig,_:=rsa.SignPSS(rand.Reader,priv,crypto.MD5,hashed,opts)
+//
+//	return sig
+//
+//}
+
+func SignData(message []byte) []byte {
 
 	//首先用hash做明文散列
-	plaintxt:=[]byte("IAMA")
 	h:=md5.New()
-	h.Write(plaintxt)
+	h.Write(message)
 	hashed:=h.Sum(nil)
 
 	//将字节数组，转换成*private类型
@@ -59,46 +78,44 @@ func SignData() []byte {
 
 	//通过pss做签名
 	opts:=&rsa.PSSOptions{rsa.PSSSaltLengthAuto,crypto.MD5}
-	sig,_:=rsa.SignPSS(rand.Reader,priv,crypto.MD5,hashed,opts)
+	sign,_:=rsa.SignPSS(rand.Reader,priv,crypto.MD5,hashed,opts)
 
-	return sig
+	return sign
 
 }
 
-
-
 //通过tcp发送数据
-
 func Send( data []byte) {
 	//创建准备链接的服务器
 	conn,_:=net.ResolveTCPAddr("tcp4","127.0.0.1:1234")
 	//开始链接
 	n,_:=net.DialTCP("tcp",nil,conn)
 	//发送数据
-	n.Write(data)
+	i,err := n.Write(data)
+	if err !=nil {
+		fmt.Println("发送数据失败")
+	}
 
-	fmt.Println("发送结束")
-
+	fmt.Println("发送结束,发送数据长度为：",i)
 }
 
 
 
 func main() {
-
 	//发送的收，将"hello baby"　和　sig　两个数组拼接到一起
 
-	sg:=SignData()
-	var data= make([]byte ,len("hello baby")+len(sg))
-	copy(data[0:10],[]byte("hello nihao ok "))
-	copy(data[10:],sg)
-
-
-
-	fmt.Println("发送的总数据为",data)
-	fmt.Println("发送的内容为",[]byte("hello baby"))
-	fmt.Println("发送的签名数据为",sg)
-
+	message :=[]byte("hello baby")
+	fmt.Println("发送的数据为:",string(message))
+	sign := SignData(message)
+	fmt.Println("发送的签名数据为",sign)
+	//打包数据
+	var data= make([]byte ,len(message)+len(sign))
+	copy(data[0:10],message)
+	copy(data[10:],sign)
+	fmt.Println("待发送的总数据为",data)
+	//发送数据
 	Send(data)
+	fmt.Println("数据已发送")
 
 
 	//优化，要求可以发送任意长度的明文
